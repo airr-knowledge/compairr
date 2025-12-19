@@ -19,7 +19,7 @@
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
-#include "compairr.h"
+#include <compairr/compairr.h>
 
 const unsigned int no_cluster = UINT_MAX;
 
@@ -298,7 +298,7 @@ static void process_seed(unsigned int seed)
     }
 }
 
-void cluster(char * filename)
+void cluster(const char * filename)
 {
   fprintf(logfile, "Immune receptor repertoire clustering\n\n");
 

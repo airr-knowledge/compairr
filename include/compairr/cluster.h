@@ -21,4 +21,4 @@
 
 /* other */
 
-void cluster(char * filename);
+void cluster(const char * filename);

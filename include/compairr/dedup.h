@@ -19,6 +19,4 @@
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
-/* other */
-
-void overlap(char * set1_filename, char * set2_filename);
+void dedup(const char * filename);

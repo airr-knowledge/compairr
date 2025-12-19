@@ -19,7 +19,9 @@
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
-#include "compairr.h"
+#include <compairr/compairr.h>
+#include "db.h"
+#include <iostream>
 
 static struct db * d1;
 static unsigned int set1_longestsequence = 0;
@@ -131,6 +133,14 @@ static int set1_compare_by_repertoire_name(const void * a, const void * b)
 {
   const unsigned int * x = (const unsigned int *) a;
   const unsigned int * y = (const unsigned int *) b;
+  return strcmp(db_get_repertoire_id(d1, *x), db_get_repertoire_id(d1, *y));
+}
+
+static int set1_compare_by_repertoire_name_r(void * d, const void * a, const void * b)
+{
+  const unsigned int * x = (const unsigned int *) a;
+  const unsigned int * y = (const unsigned int *) b;
+  db * d1 = (db *) d;
   return strcmp(db_get_repertoire_id(d1, *x), db_get_repertoire_id(d1, *y));
 }
 
@@ -604,9 +614,9 @@ uint64_t check_duplicates(struct db * d)
   return dup;
 }
 
-void overlap(char * set1_filename, char * set2_filename)
+void overlap(const char * set1_filename, const char * set2_filename)
 {
-  /* find overlaps between repertoires */
+  /* initalization to read db from filename to find overlaps between repertoires */
 
   db_init();
 
@@ -618,6 +628,32 @@ void overlap(char * set1_filename, char * set2_filename)
   d1 = db_create();
   db_read(d1, set1_filename, opt_existence, "1");
 
+  // db_debug_print(d1);
+  // std::cout << "TEST" << std::endl;
+
+  /**** Set 2 ****/
+  if (set2_filename && strcmp(set1_filename, set2_filename))
+    {
+      d2 = db_create();
+      db_read(d2, set2_filename, false, "2");
+
+      overlap(d1, d2, FALSE);
+    }
+  else
+    {
+      d2 = d1;
+
+      overlap(d1, d2, TRUE);
+    }
+}
+
+void overlap(db * d1_local, db * d2_local, bool d2eqd1)
+{
+  d1 = d1_local;
+  d2 = d2_local;
+
+  /* find overlaps between repertoires. d2eqd1 (d2==d1) signifies whether the filenames are the same*/
+  /**** Set 1 ****/
   set1_longestsequence = db_getlongestsequence(d1);
   set1_sequences = db_getsequencecount(d1);
   set1_repertoires = db_get_repertoire_count(d1);
@@ -662,9 +698,9 @@ void overlap(char * set1_filename, char * set2_filename)
     set1_lookup_repertoire[i] = i;
 
   qsort(set1_lookup_repertoire,
-        set1_repertoires,
-        sizeof(unsigned int),
-        set1_compare_by_repertoire_name);
+          set1_repertoires,
+          sizeof(unsigned int),
+          set1_compare_by_repertoire_name);
 
   /* list of repertoires in set 1 */
 
@@ -703,17 +739,13 @@ void overlap(char * set1_filename, char * set2_filename)
     }
 
   /**** Set 2 ****/
-
   uint64_t set2_sum_size = 0;
   uint64_t set2_sum_count = 0;
 
   fprintf(logfile, "Immune receptor repertoire set 2\n\n");
 
-  if (set2_filename && strcmp(set1_filename, set2_filename))
+  if (!d2eqd1)
     {
-      d2 = db_create();
-      db_read(d2, set2_filename, false, "2");
-
       set2_longestsequence = db_getlongestsequence(d2);
       set2_sequences = db_getsequencecount(d2);
       set2_repertoires = db_get_repertoire_count(d2);
@@ -799,8 +831,6 @@ void overlap(char * set1_filename, char * set2_filename)
   else
     {
       /* set2 = set1 */
-
-      d2 = d1;
 
       fprintf(logfile, "Set 2 is identical to set 1\n");
       fprintf(logfile, "\n");

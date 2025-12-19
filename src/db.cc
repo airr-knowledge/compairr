@@ -19,8 +19,9 @@
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
-#include "compairr.h"
+#include <compairr/compairr.h>
 
+#include <iostream>
 #include <string>
 #include <map>
 #include <vector>
@@ -998,6 +999,7 @@ int db_get_repertoire_id_no(struct db * d, uint64_t seqno)
 
 const char * db_get_repertoire_id(struct db * d, int repertoire_id_no)
 {
+  // std::cout << d->repertoire_id_vector << std::endl;
   return d->repertoire_id_vector[repertoire_id_no].c_str();
 }
 
@@ -1055,4 +1057,55 @@ char * db_get_keep_columns(struct db * d, uint64_t seqno)
     return keep;
   else
     return (char *) EMPTYSTRING;
+}
+
+void db_debug_print(const db * d, std::ostream & os)
+{
+    if (!d)
+    {
+        os << "db { <null> }\n";
+        return;
+    }
+
+    os << "db {\n";
+
+    os << "  seqindex            : " << d->seqindex << "\n";
+    os << "  seqindex_alloc      : " << d->seqindex_alloc << "\n";
+    os << "  sequences           : " << d->sequences << "\n";
+    os << "  longest             : " << d->longest << "\n";
+    os << "  shortest            : " << d->shortest << "\n";
+
+    os << "  residues_p          : " << static_cast<const void*>(d->residues_p) << "\n";
+    os << "  residues_alloc      : " << d->residues_alloc << "\n";
+    os << "  residues_count      : " << d->residues_count << "\n";
+
+    os << "  total_duplicate_count : " << d->total_duplicate_count << "\n";
+    os << "  repertoire_count      : " << d->repertoire_count << "\n";
+    os << "  ignored_unknown       : " << d->ignored_unknown << "\n";
+    os << "  ignored_empty         : " << d->ignored_empty << "\n";
+
+    os << "  repertoire_id_vector (" << d->repertoire_id_vector.size() << "):\n";
+    for (size_t i = 0; i < d->repertoire_id_vector.size(); ++i)
+    {
+        os << "    [" << i << "] " << d->repertoire_id_vector[i] << "\n";
+    }
+
+    os << "  repertoire_id_map (" << d->repertoire_id_map.size() << "):\n";
+    for (const auto& kv : d->repertoire_id_map)
+    {
+        os << "    " << kv.first << " -> " << kv.second << "\n";
+    }
+
+    os << "  column indices:\n";
+    os << "    col_junction        : " << d->col_junction << "\n";
+    os << "    col_junction_aa     : " << d->col_junction_aa << "\n";
+    os << "    col_cdr3            : " << d->col_cdr3 << "\n";
+    os << "    col_cdr3_aa         : " << d->col_cdr3_aa << "\n";
+    os << "    col_duplicate_count : " << d->col_duplicate_count << "\n";
+    os << "    col_v_call          : " << d->col_v_call << "\n";
+    os << "    col_j_call          : " << d->col_j_call << "\n";
+    os << "    col_repertoire_id   : " << d->col_repertoire_id << "\n";
+    os << "    col_sequence_id     : " << d->col_sequence_id << "\n";
+
+    os << "}\n";
 }

@@ -19,7 +19,7 @@
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
-#include "compairr.h"
+#include <compairr/compairr.h>
 
 const uint64_t terminal = -1;
 const uint64_t done = -2;
@@ -131,7 +131,7 @@ static bool process(struct db * d,
     return false;
 }
 
-void dedup(char * filename)
+void dedup(const char * filename)
 {
   /* deduplicate a repertoire set */
 

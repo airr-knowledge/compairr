@@ -18,6 +18,7 @@
     Department of Informatics, University of Oslo,
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
+#pragma once
 
 #include <inttypes.h>
 
@@ -135,6 +136,9 @@ enum
   };
 
 /* common data */
+static char * progname;
+extern const char * input1_filename;
+extern const char * input2_filename;
 
 extern bool opt_alternative;
 extern bool opt_cluster;
@@ -174,14 +178,32 @@ extern char ** keep_columns_strings;
 
 /* header files */
 
-#include "util.h"
-#include "arch.h"
-#include "bloompat.h"
-#include "cluster.h"
-#include "db.h"
-#include "hashtable.h"
-#include "overlap.h"
-#include "threads.h"
-#include "variants.h"
-#include "zobrist.h"
-#include "dedup.h"
+#include <compairr/util.h>
+#include <compairr/arch.h>
+#include <compairr/bloompat.h>
+#include <compairr/cluster.h>
+#include <compairr/db.h>
+#include <compairr/hashtable.h>
+#include <compairr/overlap.h>
+#include <compairr/threads.h>
+#include <compairr/variants.h>
+#include <compairr/zobrist.h>
+#include <compairr/dedup.h>
+
+bool parse_keep_columns();
+
+int64_t args_long(char * str, const char * option);
+
+void show_time(const char * prompt);
+
+void args_show();
+
+void args_usage();
+
+void show_header();
+
+void args_init(int argc, char **argv);
+
+void open_files();
+
+void close_files();

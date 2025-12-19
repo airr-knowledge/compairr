@@ -23,8 +23,6 @@
 
 struct db;
 
-
-
 /* functions in db.cc */
 
 void db_init();
@@ -79,3 +77,5 @@ const char * db_get_j_gene_name(struct db * d, uint64_t seqno);
 void db_fprint_sequence(FILE * f, struct db * d, uint64_t seqno);
 
 char * db_get_keep_columns(struct db * d, uint64_t seqno);
+
+void db_debug_print(const db* d, std::ostream& os);
