@@ -4,7 +4,7 @@ ifndef PREFIX
 	PREFIX ?= /usr/local
 endif
 
-all : compairr
+all : compairr libcompairr.a
 
 compairr:
 	make -C src compairr
@@ -12,13 +12,17 @@ compairr:
 libcompairr.a:
 	make -C src libcompairr.a
 
-test: compairr
+test: test-cli test-lib
+
+test-cli: compairr
 	make -C test test-cli
 
 test-lib: libcompairr.a
 	make -C test test-lib
 
-install: compairr test
+install: install-cli install-lib
+
+install-cli: compairr test
 	/usr/bin/install -d $(PREFIX)/bin
 	/usr/bin/install -c src/compairr $(PREFIX)/bin/compairr
 
@@ -38,3 +42,4 @@ uninstall-lib:
 
 clean:
 	make -C src clean
+	make -C test clean
