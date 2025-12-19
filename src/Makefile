@@ -19,7 +19,7 @@
 
 # Makefile for CompAIRR
 
-COMMON = -g -std=c++11
+COMMON = -std=c++11
 EXTRAOBJ =
 LINKOPT =
 LIBS = -lpthread
@@ -74,26 +74,38 @@ else
 	WARNINGS += -pedantic
 endif
 
+DEBUGFLAGS = -g -O0 -fsanitize=address -fno-omit-frame-pointer
+
 LINKFLAGS = $(COMMON) $(LINKOPT)
 
-CXXFLAGS = $(COMMON) $(WARNINGS)
+CXXFLAGS = $(COMMON) $(WARNINGS) -I../include -I../src 
 
 PROG = compairr
 
 OBJS = arch.o bloompat.o cluster.o compairr.o db.o dedup.o hashtable.o \
-	overlap.o util.o variants.o zobrist.o
+	overlap.o util.o variants.o zobrist.o compairr_cli.o
 
-DEPS = Makefile threads.h \
+LIB_OBJS = arch.o bloompat.o cluster.o compairr.o db.o dedup.o hashtable.o \
+	overlap.o util.o variants.o zobrist.o api.o
+
+HEADERS = threads.h \
 	arch.h bloompat.h cluster.h compairr.h db.h dedup.h hashtable.h \
-	overlap.h util.h variants.h zobrist.h
+	overlap.h util.h variants.h zobrist.h api.h
 
-all : $(PROG)
+INCLUDEDIR := ../include/compairr
 
-compairr : $(OBJS) $(DEPS)
+DEPS = Makefile
+
+all : libcompairr.a $(PROG)
+
+libcompairr.a : $(LIB_OBJS)
+	ar rcs $@ $(LIB_OBJS)
+
+compairr : $(OBJS) $(addprefix $(INCLUDEDIR)/,$(HEADERS)) $(DEPS)
 	$(CXX) $(LINKFLAGS) -o $@ $(OBJS) $(LIBS)
 
 clean :
-	rm -f compairr *.o *~ gmon.out *.gcno *.gcda *.gcov
+	rm -f compairr libcompairr.a *.o *~ gmon.out *.gcno *.gcda *.gcov
 
-.o : .cc $(DEPS)
+.o : .cc $(addprefix $(INCLUDEDIR)/,$(HEADERS)) $(DEPS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
