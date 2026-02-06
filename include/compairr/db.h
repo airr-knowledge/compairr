@@ -23,6 +23,33 @@
 
 struct db;
 
+// struct db
+// {
+//   seqinfo_t * seqindex;
+//   uint64_t seqindex_alloc;
+//   uint64_t sequences;
+//   unsigned int longest;
+//   unsigned int shortest;
+//   char * residues_p;
+//   uint64_t residues_alloc;
+//   uint64_t residues_count;
+//   uint64_t total_duplicate_count;
+//   uint64_t repertoire_count;
+//   uint64_t ignored_unknown;
+//   uint64_t ignored_empty;
+//   std::vector<std::string> repertoire_id_vector;
+//   std::map<std::string, int> repertoire_id_map;
+//   int col_junction;
+//   int col_junction_aa;
+//   int col_cdr3;
+//   int col_cdr3_aa;
+//   int col_duplicate_count;
+//   int col_v_call;
+//   int col_j_call;
+//   int col_repertoire_id;
+//   int col_sequence_id;
+// };
+
 /* functions in db.cc */
 
 void db_init();
@@ -31,6 +58,16 @@ void db_exit();
 
 struct db * db_create();
 
+void parse_airr_tsv_header(char * line,
+                           struct db * d,
+                           bool require_sequence_id);
+
+void parse_airr_tsv_line(char * line,
+                         uint64_t lineno,
+                         struct db * d,
+                         bool require_sequence_id,
+                         const char * default_repertoire_id);
+
 void db_free(struct db * d);
 
 void db_read(struct db * d,
@@ -38,9 +75,16 @@ void db_read(struct db * d,
              bool require_sequence_id,
              const char * default_repertoire_id);
 
+void db_read(struct db *d,
+             FILE *fp,
+             bool require_sequence_id,
+             const char *default_repertoire_id);
+
 uint64_t db_getsequencecount(struct db * d);
 
 uint64_t db_get_repertoire_count(struct db * d);
+
+void db_set_repertoire_count(struct db * d, uint64_t count);
 
 uint64_t db_getresiduescount(struct db * d);
 
@@ -79,3 +123,35 @@ void db_fprint_sequence(FILE * f, struct db * d, uint64_t seqno);
 char * db_get_keep_columns(struct db * d, uint64_t seqno);
 
 void db_debug_print(const db* d, std::ostream& os);
+
+unsigned int db_get_longest(struct db * d);
+
+void db_set_longest(struct db * d, unsigned int longest);
+
+unsigned int db_get_shortest(struct db * d);
+
+void db_set_shortest(struct db * d, unsigned int shortest);
+
+uint64_t db_get_ignored_unknown(struct db * d);
+
+void db_set_ignored_unknown(struct db * d, uint64_t ignored_unknown);
+
+uint64_t db_get_ignored_empty(struct db * d);
+
+void db_set_ignored_empty(struct db * d, uint64_t ignored_empty);
+
+std::vector<std::string> db_get_repertoire_id_vector(struct db * d);
+
+void db_set_repertoire_id_vector(struct db * d, std::vector<std::string> vec);
+
+uint64_t db_get_total_duplicate_count(struct db * d);
+
+char * db_get_residues_p(struct db * d);
+
+struct seqinfo_s * db_get_seqindex(struct db * d);
+
+void db_set_seqinfo_s_seq(struct seqinfo_s * p, char * r);
+
+unsigned int db_get_seqinfo_s_seqlen(struct seqinfo_s * p);
+
+void db_set_seqinfo_s(struct db * d, char * r, uint64_t i);

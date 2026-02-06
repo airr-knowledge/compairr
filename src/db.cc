@@ -173,7 +173,7 @@ struct db * db_create()
 void parse_airr_tsv_header(char * line,
                            struct db * d,
                            bool require_sequence_id)
-{
+  {
   char delim[] = "\t";
   char * string = line;
   char * token = nullptr;
@@ -226,7 +226,7 @@ void parse_airr_tsv_header(char * line,
         }
       i++;
     }
-
+  
   if (! (d->col_sequence_id     || ! require_sequence_id)   ||
       ! (d->col_duplicate_count ||   opt_ignore_counts)     ||
       ! (d->col_v_call          ||   opt_ignore_genes)      ||
@@ -375,6 +375,7 @@ void parse_airr_tsv_line(char * line,
       d->seqindex_alloc += SEQCHUNK;
       d->seqindex = static_cast<seqinfo_t *>
         (xrealloc(d->seqindex, d->seqindex_alloc * sizeof(seqinfo_s)));
+        // (xrealloc(d->seqindex, d->seqindex_alloc * sizeof(*d->seqindex)));
     }
 
   seqinfo_t * p = d->seqindex + d->sequences;
@@ -901,6 +902,199 @@ void db_read(struct db * d,
   progress_done();
 }
 
+void db_read(struct db *d,
+             FILE *fp,
+             bool require_sequence_id,
+             const char *default_repertoire_id) 
+{
+  struct stat fs;
+  
+  // if (fstat(fileno(fp), & fs))
+  // {
+  //   fprintf(logfile, "\nUnable to fstat on input file\n");
+  //   exit(1);
+  // }
+  int fd = fileno(fp);
+  bool is_regular = false;
+  uint64_t filesize = 0;
+
+  if (fd >= 0 && fstat(fd, &fs) == 0)
+  {
+      is_regular = S_ISREG(fs.st_mode);
+      if (is_regular)
+          filesize = (uint64_t)fs.st_size;
+  }
+  else
+  {
+      /* fp has no real fd (stdin, pipe, fmemopen, etc.) */
+      is_regular = false;
+      filesize = 0;
+  }
+
+
+  // bool is_regular = S_ISREG(fs.st_mode);
+  // uint64_t filesize = is_regular ? (uint64_t)(fs.st_size) : 0;
+  uint64_t fileread = 0;
+  if (! is_regular)
+    fprintf(logfile, "Waiting for data from standard input...\n");
+
+  size_t line_alloc = 4096;
+  char * line = (char *) xmalloc(line_alloc);
+  uint64_t lineno = 0;
+  ssize_t linelen = 0;
+
+  d->longest = 0;
+  d->shortest = UINT_MAX;
+  d->ignored_unknown = 0;
+  d->ignored_empty = 0;
+
+  int state = 0;
+  progress_init("Reading sequences:", filesize);
+
+  linelen = getline(& line, & line_alloc, fp);
+
+  if (linelen < 0)
+    fatal("Unable to read from the input file");
+
+  fileread += linelen;
+
+  if ((linelen > 0) && (line[linelen-1] == '\n'))
+    {
+      line[linelen-1] = 0;
+      linelen--;
+    }
+
+  if ((linelen > 0) && (line[linelen-1] == '\r'))
+    {
+      line[linelen-1] = 0;
+      linelen--;
+    }
+  while (linelen >= 0)
+    {
+      lineno++;
+
+      if (state == 0)
+        {
+          if (line[0] == '#')
+            {
+              /* ignore initial comment section */
+            }
+          else if (line[0] == '@')
+            {
+              /* ignore initial comment section */
+            }
+          else
+            {
+              parse_airr_tsv_header(line,
+                                    d,
+                                    require_sequence_id);
+              state = 1;
+            }
+        }
+      else
+        {
+          parse_airr_tsv_line(line,
+                              lineno,
+                              d,
+                              require_sequence_id,
+                              default_repertoire_id);
+        }
+
+      /* update progress */
+
+      if (is_regular)
+        progress_update(fileread);
+
+      /* get next line */
+
+      linelen = getline(& line, & line_alloc, fp);
+
+      if (linelen < 0)
+        break;
+
+      fileread += linelen;
+
+      /* remove LF at end of line */
+
+      if ((linelen > 0) && (line[linelen-1] == '\n'))
+        {
+          line[linelen-1] = 0;
+          linelen--;
+        }
+
+      /* remove CR at end of line if from DOS/Windows */
+
+      if ((linelen > 0) && (line[linelen-1] == '\r'))
+        {
+          line[linelen-1] = 0;
+          linelen--;
+        }
+    }
+  
+  progress_done();
+
+  if (line)
+    xfree(line);
+  line = nullptr;
+
+  fclose(fp);
+
+  d->repertoire_count = d->repertoire_id_vector.size();
+
+  if (d->ignored_unknown > 0)
+    fprintf(logfile, "%" PRIu64 " sequences with unknown symbols ignored.\n", d->ignored_unknown);
+
+  if (d->ignored_empty > 0)
+    fprintf(logfile, "%" PRIu64 " empty sequences ignored.\n", d->ignored_empty);
+
+  if (d->sequences > 0)
+    {
+      fprintf(logfile,
+              "Repertoires:       %" PRIu64 "\n"
+              "Sequences:         %" PRIu64 "\n"
+              "Residues:          %" PRIu64 "\n"
+              "Shortest:          %u\n"
+              "Longest:           %u\n"
+              "Average length:    %.1lf\n"
+              "Total dupl. count: %" PRIu64 "\n",
+              d->repertoire_count,
+              d->sequences,
+              d->residues_count,
+              d->shortest,
+              d->longest,
+              1.0 * d->residues_count / d->sequences,
+              d->total_duplicate_count);
+    }
+  else
+    {
+      fprintf(logfile,
+              "Repertoires:       %" PRIu64 "\n"
+              "Sequences:         %" PRIu64 "\n"
+              "Residues:          %" PRIu64 "\n"
+              "Shortest:          -\n"
+              "Longest:           -\n"
+              "Average length:    -\n"
+              "Total dupl. count: %" PRIu64 "\n",
+              d->repertoire_count,
+              d->sequences,
+              d->residues_count,
+              d->total_duplicate_count);
+    }
+
+  /* add sequence pointers to index table */
+
+  progress_init("Indexing:         ", d->sequences);
+  char * r = d->residues_p;
+  for(uint64_t i = 0; i < d->sequences; i++)
+    {
+      seqinfo_s * p = d->seqindex + i;
+      p->seq = r;
+      r += p->seqlen;
+      progress_update(i+1);
+    }
+  progress_done();
+}
+
 void db_hash(struct db * d)
 {
   progress_init("Computing hashes: ", d->sequences);
@@ -962,6 +1156,10 @@ uint64_t db_get_repertoire_count(struct db * d)
   return d->repertoire_count;
 }
 
+void db_set_repertoire_count(struct db * d, uint64_t count) {
+  d->repertoire_count = count;
+}
+
 uint64_t db_gethash(struct db * d, uint64_t seqno)
 {
   return d->seqindex[seqno].hash;
@@ -999,7 +1197,6 @@ int db_get_repertoire_id_no(struct db * d, uint64_t seqno)
 
 const char * db_get_repertoire_id(struct db * d, int repertoire_id_no)
 {
-  // std::cout << d->repertoire_id_vector << std::endl;
   return d->repertoire_id_vector[repertoire_id_no].c_str();
 }
 
@@ -1108,4 +1305,70 @@ void db_debug_print(const db * d, std::ostream & os)
     os << "    col_sequence_id     : " << d->col_sequence_id << "\n";
 
     os << "}\n";
+}
+
+unsigned int db_get_longest(struct db * d) {
+  return d->longest;
+}
+
+void db_set_longest(struct db * d, unsigned int longest) {
+  d->longest = longest;
+}
+
+unsigned int db_get_shortest(struct db * d) {
+  return d->shortest;
+}
+
+void db_set_shortest(struct db * d, unsigned int shortest) {
+  d->shortest = shortest;
+}
+
+uint64_t db_get_ignored_unknown(struct db * d) {
+  return d->ignored_unknown;
+}
+
+void db_set_ignored_unknown(struct db * d, uint64_t ignored_unknown) {
+  d->ignored_unknown = ignored_unknown;
+}
+
+uint64_t db_get_ignored_empty(struct db * d) {
+  return d->ignored_empty;
+}
+
+void db_set_ignored_empty(struct db * d, uint64_t ignored_empty) {
+  d->ignored_empty = ignored_empty;
+}
+
+std::vector<std::string> db_get_repertoire_id_vector(struct db * d) {
+  return d->repertoire_id_vector;
+}
+
+void db_set_repertoire_id_vector(struct db * d, std::vector<std::string> vec) {
+  d->repertoire_id_vector = vec;
+}
+
+uint64_t db_get_total_duplicate_count(struct db * d) {
+  return d->total_duplicate_count;
+}
+
+char * db_get_residues_p(struct db * d) {
+  return d->residues_p;
+}
+
+struct seqinfo_s * db_get_seqindex(struct db * d) {
+  return d->seqindex;
+}
+
+void db_set_seqinfo_s_seq(struct seqinfo_s * p, char * r) {
+  p->seq = r;
+}
+
+unsigned int db_get_seqinfo_s_seqlen(struct seqinfo_s * p) {
+  return p->seqlen;
+}
+
+void db_set_seqinfo_s(struct db * d, char * r, uint64_t i) {
+  seqinfo_s * p = d->seqindex + i;
+  p->seq = r;
+  r += p->seqlen;
 }

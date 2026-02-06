@@ -20,7 +20,7 @@
 */
 
 #include <compairr/compairr.h>
-#include "db.h"
+#include <compairr/db.h>
 #include <iostream>
 
 static struct db * d1;
@@ -59,7 +59,7 @@ typedef struct pair_s
   uint64_t seq[2];
 } pair_t;
 
-const uint64_t CHUNK = 1000;
+const uint64_t CHUNK = 1000000;
 const char * empty_string = "";
 
 static inline bool hash_insert(struct db * d,
@@ -637,22 +637,22 @@ void overlap(const char * set1_filename, const char * set2_filename)
       d2 = db_create();
       db_read(d2, set2_filename, false, "2");
 
-      overlap(d1, d2, FALSE);
+      overlap(d1, d2, false);
     }
   else
     {
       d2 = d1;
 
-      overlap(d1, d2, TRUE);
+      overlap(d1, d2, true);
     }
 }
 
 void overlap(db * d1_local, db * d2_local, bool d2eqd1)
 {
+  /* find overlaps between repertoires. d2eqd1 (d2==d1) signifies whether the filenames are the same*/
   d1 = d1_local;
   d2 = d2_local;
 
-  /* find overlaps between repertoires. d2eqd1 (d2==d1) signifies whether the filenames are the same*/
   /**** Set 1 ****/
   set1_longestsequence = db_getlongestsequence(d1);
   set1_sequences = db_getsequencecount(d1);

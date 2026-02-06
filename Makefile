@@ -40,6 +40,8 @@ uninstall-lib:
 	rm -f $(PREFIX)/lib/libcompairr.a
 	rm -rf $(PREFIX)/include/compairr/
 
+reinstall-lib: uninstall-lib install-lib
+
 clean:
 	make -C src clean
 	make -C test clean

@@ -40,11 +40,11 @@ int main(void)
     db_read(d2, "setb.tsv", false, "2");
 
     // std::cout << db_getlongestsequence(d1) << std::endl;
-    compairr::computeOverlap("seta.tsv", "setb.tsv");
-    // compairr::computeOverlap(d1, d2, false);
-    db_debug_print(d1, std::cout);
-    std::cout << "------------------------" << std::endl;
-    db_debug_print(d2, std::cout);
+    // compairr::computeOverlap("seta.tsv", "setb.tsv");
+    compairr::computeOverlap(d1, d2, false);
+    // db_debug_print(d1, std::cout);
+    // std::cout << "------------------------" << std::endl;
+    // db_debug_print(d2, std::cout);
     close_files();
 
     // compairr::runOverlap("seta.tsv", "setb.tsv", 1, TRUE, "output.tsv", "compairr.log");

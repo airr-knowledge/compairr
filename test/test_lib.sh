@@ -8,7 +8,7 @@ fi
 
 if diff -q output.tsv expected.tsv; then
     echo Test completed successfully.
-    rm output.tsv
+    # rm output.tsv
 else
     echo Test failed.
     exit 1
