@@ -64,10 +64,13 @@ bool opt_nucleotides;
 bool opt_no_matrix;
 bool opt_version;
 bool opt_deduplicate;
+bool opt_seq_id_only;
+bool opt_deduplicate_pairs;
 char * opt_keep_columns;
 char * opt_log;
 char * opt_output;
 char * opt_pairs;
+char * opt_seq_map;
 char * opt_score_string;
 int64_t opt_differences;
 int64_t opt_score_int;
@@ -80,6 +83,7 @@ const char * seq_header = nullptr;
 FILE * outfile = nullptr;
 FILE * logfile = nullptr;
 FILE * pairsfile = nullptr;
+FILE * seqmapfile = nullptr;
 
 int keep_columns_count = 0;
 int * keep_columns_no = nullptr;
@@ -242,6 +246,8 @@ void args_show()
       fprintf(logfile, "Output format (a): %s\n", opt_alternative ? "Column" : "Matrix");
       fprintf(logfile, "Score (s):         %s\n", score_descr[opt_score_int]);
       fprintf(logfile, "Pairs file (p):    %s\n", opt_pairs ? opt_pairs : "(none)");
+      fprintf(logfile, "\tSequence ID only:    %s\n", opt_seq_id_only  ? "Yes" : "No");
+      fprintf(logfile, "\tDeduplicate:         %s\n", opt_deduplicate_pairs  ? "Yes" : "No");
       fprintf(logfile, "Keep columns:      %s\n", opt_keep_columns ? opt_keep_columns : "");
     }
   fprintf(logfile, "Log file (l):      %s\n", opt_log ? opt_log : "(stderr)");
@@ -279,6 +285,9 @@ void args_usage()
   fprintf(stderr, " -o, --output FILENAME       output results to file (stdout*)\n");
   fprintf(stderr, "     --no-matrix             do not keep or output any matrix\n");
   fprintf(stderr, " -p, --pairs FILENAME        output matching pairs to file (none*)\n");
+  fprintf(stderr, " -q, --sequence-id-only      only include sequence ID's in pairs file\n");
+  fprintf(stderr, " -r, --deduplicate-pairs     deduplicate pairs file based on sequence ID\n");
+  fprintf(stderr, "     --sequence-map FILENAME create a sequence ID/CDR3 map file\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "                             * default value\n");
   fprintf(stderr, "\n");
@@ -319,44 +328,51 @@ void args_init(int argc, char **argv)
   opt_no_matrix = false;
   opt_output = DASH_FILENAME;
   opt_pairs = nullptr;
+  opt_seq_id_only = false;
+  opt_deduplicate_pairs = false;
+  opt_seq_map = nullptr;
   opt_score_int = 0;
   opt_score_string = NULL;
   opt_threads = 1;
   opt_version = false;
 
-  opterr = 1;
 
-  char short_options[] = "acd:efghik:l:mno:p:s:t:uvxz";
+  int opterr = 1;
+
+  char short_options[] = "acd:efghik:l:mno:p:qrs:t:uvxz";
 
   /* unused short option letters: bejqrwy */
 
   static struct option long_options[] =
   {
-    {"alternative",      no_argument,       nullptr, 'a' },
-    {"cdr3",             no_argument,       nullptr, 0   },
-    {"cluster",          no_argument,       nullptr, 'c' },
-    {"differences",      required_argument, nullptr, 'd' },
-    {"distance",         no_argument,       nullptr, 0   },
-    {"ignore-empty",     no_argument,       nullptr, 'e' },
-    {"ignore-counts",    no_argument,       nullptr, 'f' },
-    {"ignore-genes",     no_argument,       nullptr, 'g' },
-    {"help",             no_argument,       nullptr, 'h' },
-    {"indels",           no_argument,       nullptr, 'i' },
-    {"keep-columns",     required_argument, nullptr, 'k' },
-    {"log",              required_argument, nullptr, 'l' },
-    {"matrix",           no_argument,       nullptr, 'm' },
-    {"nucleotides",      no_argument,       nullptr, 'n' },
-    {"no-matrix",        no_argument,       nullptr, 0   },
-    {"output",           required_argument, nullptr, 'o' },
-    {"pairs",            required_argument, nullptr, 'p' },
-    {"score",            required_argument, nullptr, 's' },
-    {"summands",         required_argument, nullptr, 's' },
-    {"threads",          required_argument, nullptr, 't' },
-    {"ignore-unknown",   no_argument,       nullptr, 'u' },
-    {"version",          no_argument,       nullptr, 'v' },
-    {"existence",        no_argument,       nullptr, 'x' },
-    {"deduplicate",      no_argument,       nullptr, 'z' },
-    {nullptr,            0,                 nullptr, 0   }
+    {"alternative",       no_argument,       nullptr, 'a' },
+    {"cdr3",              no_argument,       nullptr, 0   },
+    {"cluster",           no_argument,       nullptr, 'c' },
+    {"differences",       required_argument, nullptr, 'd' },
+    {"distance",          no_argument,       nullptr, 0   },
+    {"ignore-empty",      no_argument,       nullptr, 'e' },
+    {"ignore-counts",     no_argument,       nullptr, 'f' },
+    {"ignore-genes",      no_argument,       nullptr, 'g' },
+    {"help",              no_argument,       nullptr, 'h' },
+    {"indels",            no_argument,       nullptr, 'i' },
+    {"keep-columns",      required_argument, nullptr, 'k' },
+    {"log",               required_argument, nullptr, 'l' },
+    {"matrix",            no_argument,       nullptr, 'm' },
+    {"nucleotides",       no_argument,       nullptr, 'n' },
+    {"no-matrix",         no_argument,       nullptr, 0   },
+    {"output",            required_argument, nullptr, 'o' },
+    {"pairs",             required_argument, nullptr, 'p' },
+    {"sequence-id-only",  no_argument,       nullptr, 'q' },
+    {"deduplicate-pairs", no_argument,       nullptr, 'r' },
+    {"sequence-map",      required_argument, nullptr, 0   },
+    {"score",             required_argument, nullptr, 's' },
+    {"summands",          required_argument, nullptr, 's' },
+    {"threads",           required_argument, nullptr, 't' },
+    {"ignore-unknown",    no_argument,       nullptr, 'u' },
+    {"version",           no_argument,       nullptr, 'v' },
+    {"existence",         no_argument,       nullptr, 'x' },
+    {"deduplicate",       no_argument,       nullptr, 'z' },
+    {nullptr,             0,                 nullptr, 0   }
   };
 
   enum
@@ -378,6 +394,9 @@ void args_init(int argc, char **argv)
       option_no_matrix,
       option_output,
       option_pairs,
+      option_sequence_id_only,
+      option_deduplicate_pairs,
+      option_sequence_map,
       option_score,
       option_summands,
       option_threads,
@@ -495,6 +514,16 @@ void args_init(int argc, char **argv)
         /* pairs-file */
         opt_pairs = optarg;
         break;
+        
+      case 'q':
+        /* sequence-id-only */
+        opt_seq_id_only = true;
+        break;
+
+      case 'r':
+        /* deduplicate-pairs */
+        opt_deduplicate_pairs = true;
+        break;
 
       case 's':
         /* score, summands */
@@ -544,6 +573,11 @@ void args_init(int argc, char **argv)
           case option_no_matrix:
             /* no_matrix */
             opt_no_matrix = true;
+            break;
+          
+          case option_sequence_map:
+            /* output sequence ID/CDR3 map */
+            opt_seq_map = optarg;
             break;
 
           default:
@@ -645,6 +679,12 @@ void args_init(int argc, char **argv)
     {
       if (opt_pairs)
         fatal("Option -p or --pairs is not allowed with -c or --cluster");
+      if (opt_seq_id_only)
+        fatal("Option -q or --sequence-id-only is not allowed with -c or --cluster");
+      if (opt_deduplicate_pairs)
+        fatal("Option -r or --deduplicate-pairs is not allowed with -c or --cluster");
+      if (opt_seq_map)
+        fatal("Option --sequence-map is not allowed with -c or --cluster");
       if (opt_alternative)
         fatal("Option -a or --alternative is not allowed with -c or --cluster");
       if (opt_score_string)
@@ -705,6 +745,22 @@ void args_init(int argc, char **argv)
       seq_header = "junction";
     else
       seq_header = "junction_aa";
+
+  if (!opt_pairs)
+    {
+      if (opt_seq_id_only)
+        {
+          fatal("Option -q or --sequence-id-only is only used with -p or --pairs");
+        }
+      if (opt_deduplicate_pairs)
+        {
+          fatal("Option -r or --deduplicate-pairs is only used with -p or --pairs");
+        }
+      if (opt_seq_map)
+        {
+          fatal("Option --sequence-map is only used with -p or --pairs");
+        }
+    }
 }
 
 void open_files()
@@ -727,11 +783,21 @@ void open_files()
       pairsfile = fopen_output(opt_pairs);
       if (! pairsfile)
         fatal("Unable to open pairs file for writing.");
+      
+      if (opt_seq_map)
+        {
+          seqmapfile = fopen_output(opt_seq_map);
+          if (! seqmapfile)
+            fatal("Unable to open sequence map file for writing.");
+        }
     }
 }
 
 void close_files()
 {
+  if (seqmapfile)
+    fclose(seqmapfile);
+  
   if (pairsfile)
     fclose(pairsfile);
 

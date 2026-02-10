@@ -22,6 +22,8 @@
 #include <compairr/compairr.h>
 #include <compairr/db.h>
 #include <iostream>
+#include <algorithm>
+#include <unordered_map>
 
 static struct db * d1;
 static unsigned int set1_longestsequence = 0;
@@ -461,9 +463,16 @@ static void sim_thread(int64_t t)
         {
           pthread_mutex_lock(&network_mutex);
         }
-
+      // std::cout << pairs_list[0].seq[0] << std::endl;
       if (opt_pairs)
         {
+          std::unordered_map<uint64_t, uint64_t> pairs_map;
+          if (opt_deduplicate_pairs)
+            std::sort(pairs_list, pairs_list+pairs_count, [](pair_s a, pair_s b)
+                                                          {
+                                                            return a.seq[0] < b.seq[0];
+                                                          });
+                                                          
           for (uint64_t i = 0; i < pairs_count; i++)
             {
               uint64_t a = pairs_list[i].seq[0];
@@ -476,26 +485,69 @@ static void sim_thread(int64_t t)
               int rep_id_no2 = db_get_repertoire_id_no(d2, b);
               const char * rep_id2 = db_get_repertoire_id(d2, rep_id_no2);
               int64_t len2 = db_getsequencelen(d2, b);
+              
+              // print sequence-map to file
+              if (opt_seq_map)
+                {
+                  fprintf(seqmapfile,
+                      "%s\t",
+                      db_get_sequence_id(d1, a));
+                  db_fprint_sequence(seqmapfile, d1, a);
+                  fprintf(seqmapfile, "\n");
+                }
+             
 
-              fprintf(pairsfile,
-                      "%s\t%s\t%" PRIu64 "\t%s\t%s\t",
-                      rep_id1,
-                      db_get_sequence_id(d1, a),
-                      db_get_count(d1, a),
-                      db_get_v_gene_name(d1, a),
-                      db_get_j_gene_name(d1, a));
-              db_fprint_sequence(pairsfile, d1, a);
+              if (opt_deduplicate_pairs)
+                {
+                  // remove self-reference
+                  if (db_get_sequence_id(d1, a) == db_get_sequence_id(d2, b))
+                    {
+                      continue;
+                    }
+                  
+                  // remove reciprocal
+                  if (pairs_map.find(b) != pairs_map.end())
+                    {
+                      continue;
+                    } 
+                  else 
+                    {
+                      pairs_map[a] = b;
+                    }
+                }
+              if (opt_seq_id_only) {
+                fprintf(pairsfile,
+                        "%s",
+                        db_get_sequence_id(d1, a)
+                        );
+              } else {
+                fprintf(pairsfile,
+                        "%s\t%s\t%" PRIu64 "\t%s\t%s\t",
+                        rep_id1,
+                        db_get_sequence_id(d1, a),
+                        db_get_count(d1, a),
+                        db_get_v_gene_name(d1, a),
+                        db_get_j_gene_name(d1, a));
+                db_fprint_sequence(pairsfile, d1, a);
+              }
               if (opt_keep_columns)
                 fprintf(pairsfile, "\t%s", db_get_keep_columns(d1, a));
-
-              fprintf(pairsfile,
-                      "\t%s\t%s\t%" PRIu64 "\t%s\t%s\t",
-                      rep_id2,
-                      db_get_sequence_id(d2, b),
-                      db_get_count(d2, b),
-                      db_get_v_gene_name(d2, b),
-                      db_get_j_gene_name(d2, b));
-              db_fprint_sequence(pairsfile, d2, b);
+              
+              if (opt_seq_id_only) {
+                fprintf(pairsfile,
+                        "\t%s",
+                        db_get_sequence_id(d2, b)
+                        );
+              } else {
+                fprintf(pairsfile,
+                        "\t%s\t%s\t%" PRIu64 "\t%s\t%s\t",
+                        rep_id2,
+                        db_get_sequence_id(d2, b),
+                        db_get_count(d2, b),
+                        db_get_v_gene_name(d2, b),
+                        db_get_j_gene_name(d2, b));
+                db_fprint_sequence(pairsfile, d2, b);
+              }
               if (opt_keep_columns)
                 fprintf(pairsfile, "\t%s", db_get_keep_columns(d2, b));
 
@@ -937,16 +989,29 @@ void overlap(db * d1_local, db * d2_local, bool d2eqd1)
 
   if (opt_pairs)
     {
-      fprintf(pairsfile,
-              "#repertoire_id_1\tsequence_id_1\t"
-              "duplicate_count_1\tv_call_1\tj_call_1\t%s_1",
-              seq_header);
+      if (!opt_seq_id_only) {
+        fprintf(pairsfile,
+                "#repertoire_id_1\tsequence_id_1\t"
+                "duplicate_count_1\tv_call_1\tj_call_1\t%s_1",
+                seq_header);
+      } else {
+        fprintf(pairsfile,
+                "sequence_id_1\t",
+                seq_header);
+      }
+
       for (int k = 0; k < keep_columns_count; k++)
         fprintf(pairsfile, "\t%s_1", keep_columns_names[k]);
-      fprintf(pairsfile,
-              "\trepertoire_id_2\tsequence_id_2\t"
-              "duplicate_count_2\tv_call_2\tj_call_2\t%s_2",
-              seq_header);
+      if (!opt_seq_id_only) {
+        fprintf(pairsfile,
+                "\trepertoire_id_2\tsequence_id_2\t"
+                "duplicate_count_2\tv_call_2\tj_call_2\t%s_2",
+                seq_header);
+      } else {
+        fprintf(pairsfile,
+                "sequence_id_2\t",
+                seq_header);
+      }
       for (int k = 0; k < keep_columns_count; k++)
         fprintf(pairsfile, "\t%s_2", keep_columns_names[k]);
       if (opt_distance)
