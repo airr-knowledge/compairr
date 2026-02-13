@@ -1015,12 +1015,14 @@ void overlap(db * d1_local, db * d2_local, bool d2eqd1)
       //           "sequence_id_2\t",
       //           seq_header);
       // }
-      
+
       for (int k = 0; k < keep_columns_count; k++)
         fprintf(pairsfile, "\t%s_2", keep_columns_names[k]);
       if (opt_distance)
         fprintf(pairsfile, "\tdistance");
-      fprintf(pairsfile, "\n");
+      if (!opt_seq_id_only) {
+        fprintf(pairsfile, "\n");
+      }
     }
   if (opt_threads == 1)
     {
