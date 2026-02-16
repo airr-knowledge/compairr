@@ -22,8 +22,6 @@
 #include <compairr/compairr.h>
 #include <compairr/db.h>
 #include <iostream>
-#include <algorithm>
-#include <unordered_map>
 
 static struct db * d1;
 static unsigned int set1_longestsequence = 0;
@@ -466,17 +464,17 @@ static void sim_thread(int64_t t)
       // std::cout << pairs_list[0].seq[0] << std::endl;
       if (opt_pairs)
         {
-          std::unordered_map<uint64_t, uint64_t> pairs_map;
-          if (opt_deduplicate_pairs)
-            std::sort(pairs_list, pairs_list+pairs_count, [](pair_s a, pair_s b)
-                                                          {
-                                                            return a.seq[0] < b.seq[0];
-                                                          });
-                                                          
-          for (uint64_t i = 0; i < pairs_count; i++)
+            for (uint64_t i = 0; i < pairs_count; i++)
             {
               uint64_t a = pairs_list[i].seq[0];
               uint64_t b = pairs_list[i].seq[1];
+              
+              if (opt_deduplicate_pairs) {
+                if (db_get_sequence_id(d1, a) > db_get_sequence_id(d2, b))
+                  continue;
+                if (db_get_sequence_id(d1, a) == db_get_sequence_id(d2, b))
+                  continue;
+              }
 
               int rep_id_no1 = db_get_repertoire_id_no(d1, a);
               const char * rep_id1 = db_get_repertoire_id(d1, rep_id_no1);
@@ -496,25 +494,6 @@ static void sim_thread(int64_t t)
                   fprintf(seqmapfile, "\n");
                 }
              
-
-              if (opt_deduplicate_pairs)
-                {
-                  // remove self-reference
-                  if (db_get_sequence_id(d1, a) == db_get_sequence_id(d2, b))
-                    {
-                      continue;
-                    }
-                  
-                  // remove reciprocal
-                  if (pairs_map.find(b) != pairs_map.end())
-                    {
-                      continue;
-                    } 
-                  else 
-                    {
-                      pairs_map[a] = b;
-                    }
-                }
               if (opt_seq_id_only) {
                 fprintf(pairsfile,
                         "%s",
